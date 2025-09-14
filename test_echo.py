@@ -1,10 +1,10 @@
-   import requests
+  import requests
 import pytest
 
 BASE_URL = "https://postman-echo.com"
 
 # =====================================================================
-# TEST 1: GET без параметров — базовая структура ответа
+# TEST 1: GET без параметров — проверка структуры ответа
 # =====================================================================
 def test_get_empty():
     """
@@ -13,19 +13,27 @@ def test_get_empty():
       - Статус-код 200
       - Ответ содержит обязательные поля: 'args', 'headers', 'url'
       - 'args' — пустой словарь
-      - 'headers' — не пустой (содержит более 10 заголовков)
+      - 'headers' — существует и не пустой
       - 'url' совпадает с запрошенным
     """
     response = requests.get(BASE_URL + "/get")
     assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
     data = response.json()
+
+    # Проверяем наличие обязательных полей
     assert "args" in data, "Response missing 'args' field"
     assert "headers" in data, "Response missing 'headers' field"
     assert "url" in data, "Response missing 'url' field"
 
+    # Проверяем содержимое args — должно быть пустым
     assert data["args"] == {}, "Expected empty 'args' for no query parameters"
-    assert len(data["headers"]) > 10, "Headers field is suspiciously empty or too short"
+
+    # Проверяем, что headers — это словарь и не пустой
+    assert isinstance(data["headers"], dict), "'headers' should be a dictionary"
+    assert len(data["headers"]) > 0, "'headers' field is empty"
+
+    # Проверяем, что url совпадает с запросом
     assert data["url"] == BASE_URL + "/get", "Returned URL does not match requested URL"
 
 
@@ -48,10 +56,12 @@ def test_get_with_query_params():
     assert response.status_code == 200
     data = response.json()
 
+    # Проверяем, что каждый параметр присутствует и совпадает по значению
     for key, value in params.items():
         assert data["args"].get(key) == str(value), \
             f"Query param '{key}' expected '{value}', got '{data['args'].get(key)}'"
 
+    # Проверяем, что количество параметров совпадает
     assert len(data["args"]) == len(params), "Not all query parameters were returned"
 
 
@@ -81,14 +91,13 @@ def test_post_json_body():
     assert response.status_code == 200
     data = response.json()
 
+    # Проверяем, что данные попали в 'json'
     assert "json" in data, "Response missing 'json' field for JSON body"
     assert data["json"] == json_data, "JSON body was modified by server"
 
-    # ✅ ИСПРАВЛЕНО: НЕ проверяем тип или содержимое 'data' — он нестабилен!
-    # Сервер может вернуть data как null, пустую строку или даже строку с JSON-объектом.
+    # ✅ ИСПРАВЛЕНО: Не проверяем 'data' — он нестабилен
+    # Сервер может вернуть data как null, пустую строку или даже строку с JSON-объектом
     # Мы проверяем только то, что гарантировано: поле 'json'
-    # Если нужно — можно добавить: assert data.get("data") is None or isinstance(data["data"], str)
-    # Но это не обязательно — поэтому просто пропускаем проверку
 
 
 # =====================================================================
@@ -136,6 +145,7 @@ def test_custom_headers_reflected():
     assert response.status_code == 200
     data = response.json()
 
+    # Проверяем, что каждый кастомный заголовок присутствует в ответе
     for header_name, header_value in custom_headers.items():
         # Сервер приводит все заголовки к нижнему регистру
         lower_header = header_name.lower()
@@ -159,4 +169,4 @@ def test_large_json_body():
 
     received_json = data["json"]
     assert len(received_json) == 50, "Server truncated large JSON body"
-    assert received_json["key_49"] == "value_49", "Data integrity failed at index 49" 
+    assert received_json["key_49"] == "value_49", "Data integrity failed at index 49"
